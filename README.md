@@ -197,12 +197,12 @@ If you prefer to run components individually:
 
 1. Start PostgreSQL:
 ```bash
-docker run --name vehicle_db \
+docker run --name car_db \
   -e POSTGRES_PASSWORD=postgres \
   -e POSTGRES_DB=vehicledamage \
   -p 5432:5432 -d postgres
 ```
-*(Next time after restart: `docker start vehicle_db`)*
+*(Next time after restart: `docker start car_db`)*
 
 2. Start the Backend:
 ```bash
