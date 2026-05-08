@@ -1,6 +1,102 @@
 /// Data models for the Vehicle Damage Assessment app
 
-import 'dart:convert';
+import 'dart:typed_data';
+
+enum AssessmentMediaType {
+  image,
+  video,
+}
+
+AssessmentMediaType assessmentMediaTypeFromString(String? value) {
+  switch (value) {
+    case 'video':
+      return AssessmentMediaType.video;
+    case 'image':
+    default:
+      return AssessmentMediaType.image;
+  }
+}
+
+String assessmentMediaTypeToString(AssessmentMediaType mediaType) {
+  switch (mediaType) {
+    case AssessmentMediaType.video:
+      return 'video';
+    case AssessmentMediaType.image:
+      return 'image';
+  }
+}
+
+/// Lightweight report history item persisted between app launches.
+class AssessmentHistoryItem {
+  final String id;
+  final String title;
+  final DateTime timestamp;
+  final AssessmentMediaType mediaType;
+  final int damageCount;
+  final List<String> damageTypes;
+  final double? totalCost;
+  final String? severity;
+
+  AssessmentHistoryItem({
+    required this.id,
+    required this.title,
+    required this.timestamp,
+    required this.mediaType,
+    required this.damageCount,
+    required this.damageTypes,
+    this.totalCost,
+    this.severity,
+  });
+
+  factory AssessmentHistoryItem.fromJson(Map<String, dynamic> json) {
+    return AssessmentHistoryItem(
+      id: json['id'] as String,
+      title: (json['title'] as String?)?.trim().isNotEmpty == true
+          ? json['title'] as String
+          : 'Untitled',
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      mediaType: assessmentMediaTypeFromString(json['media_type'] as String?),
+      damageCount: json['damage_count'] as int,
+      damageTypes: List<String>.from(json['damage_types'] as List? ?? const []),
+      totalCost: json['total_cost'] != null
+          ? (json['total_cost'] as num).toDouble()
+          : null,
+      severity: json['severity'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'timestamp': timestamp.toIso8601String(),
+      'media_type': assessmentMediaTypeToString(mediaType),
+      'damage_count': damageCount,
+      'damage_types': damageTypes,
+      'total_cost': totalCost,
+      'severity': severity,
+    };
+  }
+}
+
+/// Session-only detail data. Media bytes are intentionally never serialized.
+class SavedAssessmentSession {
+  final AssessmentHistoryItem historyItem;
+  final Uint8List? mediaBytes;
+  final DamageDetectionResponse? detectionResult;
+  final VideoDetectionResponse? videoResult;
+  final CostEstimationResponse? costResult;
+  final ReportResponse? report;
+
+  SavedAssessmentSession({
+    required this.historyItem,
+    this.mediaBytes,
+    this.detectionResult,
+    this.videoResult,
+    this.costResult,
+    this.report,
+  });
+}
 
 /// Bounding box for detected damage
 class BoundingBox {

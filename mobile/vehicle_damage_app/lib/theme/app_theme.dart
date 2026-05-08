@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // Bright brand colors
-  static const Color primaryColor = Color(0xFF3B82F6);  // Bright blue
-  static const Color secondaryColor = Color(0xFF8B5CF6);  // Bright purple
+  static const Color primaryColor = Color(0xFF5061C8);
+  static const Color secondaryColor = Color(0xFF6D7BE0);
   static const Color successColor = Color(0xFF22C55E);  // Bright green
   static const Color warningColor = Color(0xFFFBBF24);  // Bright yellow
   static const Color errorColor = Color(0xFFF87171);  // Bright red
-  static const Color backgroundColor = Color(0xFFF8FAFC);  // Very light gray
+  static const Color backgroundColor = Color(0xFFEAF3FA);
   static const Color surfaceColor = Colors.white;
   
   // Damage type colors - brighter
@@ -51,14 +51,14 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Color(0xFF1E293B),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: TextStyle(
           fontFamily: 'Poppins',
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF1E293B),
+          color: Colors.white,
         ),
       ),
       
@@ -69,7 +69,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.black.withOpacity(0.08),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: Colors.grey.shade100),
         ),
       ),
@@ -234,19 +234,23 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         titleTextStyle: TextStyle(
           fontFamily: 'Poppins',
           fontSize: 18,
           fontWeight: FontWeight.w600,
+          color: Colors.white,
         ),
       ),
       
       // Card theme
       cardTheme: CardThemeData(
-        elevation: 2,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
         ),
       ),
       

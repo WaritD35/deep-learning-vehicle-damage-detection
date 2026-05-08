@@ -1,4 +1,4 @@
-/// Settings Screen - Configure app settings
+// Settings screen - configure app settings
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,11 +14,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _serverUrlController = TextEditingController();
+  String _serverUrl = 'http://localhost:8000';
   double _confidenceThreshold = 0.25;
   bool _returnAnnotatedImage = true;
   bool _includeLabor = true;
-  String _currency = 'USD';
+  String _currency = 'AUD';
+  bool _isSavePressed = false;
 
   @override
   void initState() {
@@ -29,25 +30,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _serverUrlController.text = prefs.getString('server_url') ?? 'http://localhost:8000';
+      _serverUrl = prefs.getString('server_url') ?? 'http://localhost:8000';
       _confidenceThreshold = prefs.getDouble('confidence_threshold') ?? 0.25;
       _returnAnnotatedImage = prefs.getBool('return_annotated') ?? true;
       _includeLabor = prefs.getBool('include_labor') ?? true;
-      _currency = prefs.getString('currency') ?? 'USD';
+      _currency = prefs.getString('currency') ?? 'AUD';
     });
   }
 
   Future<void> _saveSettings() async {
+    final api = context.read<ApiService>();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('server_url', _serverUrlController.text);
+    await prefs.setString('server_url', _serverUrl);
     await prefs.setDouble('confidence_threshold', _confidenceThreshold);
     await prefs.setBool('return_annotated', _returnAnnotatedImage);
     await prefs.setBool('include_labor', _includeLabor);
     await prefs.setString('currency', _currency);
     
     // Update API service base URL
-    final api = context.read<ApiService>();
-    api.baseUrl = _serverUrlController.text;
+    api.baseUrl = _serverUrl;
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -59,12 +60,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _handleSaveTap() async {
+    if (_isSavePressed) return;
+    setState(() => _isSavePressed = true);
+    await Future.wait<void>([
+      _saveSettings(),
+      Future<void>.delayed(const Duration(milliseconds: 170)),
+    ]);
+    if (mounted) {
+      setState(() => _isSavePressed = false);
+    }
+  }
+
   Future<void> _testConnection() async {
     final api = context.read<ApiService>();
     final originalUrl = api.baseUrl;
     
     // Temporarily set URL to test
-    api.baseUrl = _serverUrlController.text;
+    api.baseUrl = _serverUrl;
     final isConnected = await api.healthCheck();
     
     if (!mounted) return;
@@ -92,194 +105,199 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   @override
-  void dispose() {
-    _serverUrlController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        actions: [
-          TextButton(
-            onPressed: _saveSettings,
-            child: const Text('SAVE'),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Server Configuration
-          _SectionHeader(title: 'Server Configuration'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: isDark ? const Color(0xFF0B1220) : const Color(0xFFEAF3FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              height: 124,
+              color: const Color(0xFF5061C8),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
                 children: [
-                  TextField(
-                    controller: _serverUrlController,
-                    decoration: const InputDecoration(
-                      labelText: 'Server URL',
-                      hintText: 'http://localhost:8000',
-                      prefixIcon: Icon(Icons.dns),
-                    ),
-                    keyboardType: TextInputType.url,
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _testConnection,
-                          icon: const Icon(Icons.network_check),
-                          label: const Text('Test Connection'),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Settings',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: _handleSaveTap,
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: _isSavePressed
+                            ? Colors.white.withValues(alpha: 0.34)
+                            : Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: _isSavePressed
+                              ? Colors.white.withValues(alpha: 0.45)
+                              : Colors.white.withValues(alpha: 0.24),
                         ),
                       ),
-                    ],
+                      child: const Icon(Icons.save_outlined, color: Colors.white, size: 22),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Detection Settings
-          _SectionHeader(title: 'Detection Settings'),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.tune),
-                  title: const Text('Confidence Threshold'),
-                  subtitle: Text('${(_confidenceThreshold * 100).toInt()}%'),
-                  trailing: SizedBox(
-                    width: 150,
-                    child: Slider(
-                      value: _confidenceThreshold,
-                      min: 0.1,
-                      max: 0.9,
-                      divisions: 16,
-                      onChanged: (value) {
-                        setState(() {
-                          _confidenceThreshold = value;
-                        });
-                      },
+            Expanded(
+              child: Transform.translate(
+                offset: const Offset(0, -22),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF131D33) : Colors.white,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
+                  ),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 28, 20, 30),
+                    children: [
+                    _SectionHeader(title: 'Server Configuration'),
+                    _SoftBlock(
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _testConnection,
+                          icon: const Icon(Icons.network_check),
+                          label: const Text('Test Connection'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.image),
-                  title: const Text('Return Annotated Image'),
-                  subtitle: const Text('Show bounding boxes on image'),
-                  value: _returnAnnotatedImage,
-                  onChanged: (value) {
-                    setState(() {
-                      _returnAnnotatedImage = value;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Cost Estimation Settings
-          _SectionHeader(title: 'Cost Estimation'),
-          Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.engineering),
-                  title: const Text('Include Labor Costs'),
-                  subtitle: const Text('Add labor costs to estimates'),
-                  value: _includeLabor,
-                  onChanged: (value) {
-                    setState(() {
-                      _includeLabor = value;
-                    });
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.attach_money),
-                  title: const Text('Currency'),
-                  trailing: DropdownButton<String>(
-                    value: _currency,
-                    underline: const SizedBox(),
-                    items: const [
-                      DropdownMenuItem(value: 'USD', child: Text('USD (\$)')),
-                      DropdownMenuItem(value: 'EUR', child: Text('EUR (€)')),
-                      DropdownMenuItem(value: 'GBP', child: Text('GBP (£)')),
-                      DropdownMenuItem(value: 'AUD', child: Text('AUD (A\$)')),
+                    const SizedBox(height: 20),
+                    _SectionHeader(title: 'Detection Settings'),
+                    _SoftBlock(
+                      child: Column(
+                        children: [
+                          _LineItem(
+                            icon: Icons.tune,
+                            title: 'Confidence Threshold',
+                            subtitle: '${(_confidenceThreshold * 100).toInt()}%',
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 28),
+                            child: Slider(
+                              value: _confidenceThreshold,
+                              min: 0.1,
+                              max: 0.9,
+                              divisions: 16,
+                              onChanged: (value) => setState(() => _confidenceThreshold = value),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _LineItem(
+                            icon: Icons.image_outlined,
+                            title: 'Return Annotated Image',
+                            subtitle: 'Show bounding boxes on image',
+                            trailing: Switch(
+                              value: _returnAnnotatedImage,
+                              onChanged: (value) => setState(() => _returnAnnotatedImage = value),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _SectionHeader(title: 'Cost Estimation'),
+                    _SoftBlock(
+                      child: Column(
+                        children: [
+                          _LineItem(
+                            icon: Icons.engineering_outlined,
+                            title: 'Include Labor Costs',
+                            subtitle: 'Add labor costs to estimates',
+                            trailing: Switch(
+                              value: _includeLabor,
+                              onChanged: (value) => setState(() => _includeLabor = value),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _LineItem(
+                            icon: Icons.attach_money,
+                            title: 'Currency',
+                            trailing: DropdownButton<String>(
+                              value: _currency,
+                              underline: const SizedBox(),
+                              items: const [
+                                DropdownMenuItem(value: 'USD', child: Text('USD (\$)')),
+                                DropdownMenuItem(value: 'EUR', child: Text('EUR (€)')),
+                                DropdownMenuItem(value: 'GBP', child: Text('GBP (£)')),
+                                DropdownMenuItem(value: 'AUD', child: Text('AUD (A\$)')),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) setState(() => _currency = value);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _SectionHeader(title: 'Appearance'),
+                    _SoftBlock(
+                      child: _LineItem(
+                        icon: Icons.dark_mode_outlined,
+                        title: 'Dark Mode',
+                        trailing: Switch(
+                          value: themeProvider.isDarkMode,
+                          onChanged: (value) => themeProvider.setDarkMode(value),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _SectionHeader(title: 'About'),
+                    _SoftBlock(
+                      child: const Column(
+                        children: [
+                          _LineItem(
+                            icon: Icons.info_outline,
+                            title: 'Version',
+                            trailing: Text('1.0.0'),
+                          ),
+                          SizedBox(height: 10),
+                          _LineItem(
+                            icon: Icons.code_outlined,
+                            title: 'Model',
+                            subtitle: 'YOLO / Faster R-CNN',
+                          ),
+                          SizedBox(height: 10),
+                          _LineItem(
+                            icon: Icons.category_outlined,
+                            title: 'Damage Categories',
+                            subtitle: 'Dent, Scratch, Crack, Glass Shatter, Lamp Broken, Tire Flat',
+                          ),
+                        ],
+                      ),
+                    ),
                     ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _currency = value;
-                        });
-                      }
-                    },
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Appearance
-          _SectionHeader(title: 'Appearance'),
-          Card(
-            child: SwitchListTile(
-              secondary: const Icon(Icons.dark_mode),
-              title: const Text('Dark Mode'),
-              value: themeProvider.isDarkMode,
-              onChanged: (value) {
-                themeProvider.setDarkMode(value);
-              },
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // About
-          _SectionHeader(title: 'About'),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.info),
-                  title: const Text('Version'),
-                  trailing: const Text('1.0.0'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.code),
-                  title: const Text('Model'),
-                  subtitle: const Text('YOLO / Faster R-CNN'),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.category),
-                  title: const Text('Damage Categories'),
-                  subtitle: const Text('Dent, Scratch, Crack, Glass Shatter,\nLamp Broken, Tire Flat'),
-                  isThreeLine: true,
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 32),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -292,15 +310,97 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      padding: const EdgeInsets.only(left: 2, bottom: 8),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
+          color: isDark ? Colors.white70 : const Color(0xFF1E2430),
           fontWeight: FontWeight.bold,
         ),
       ),
+    );
+  }
+}
+
+class _SoftBlock extends StatelessWidget {
+  final Widget child;
+
+  const _SoftBlock({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF4F3FB),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _LineItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  const _LineItem({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(icon, size: 20, color: const Color(0xFF5061C8)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF1E2430),
+                ),
+              ),
+              if (subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (trailing != null) ...[
+          const SizedBox(width: 10),
+          trailing!,
+        ],
+      ],
     );
   }
 }

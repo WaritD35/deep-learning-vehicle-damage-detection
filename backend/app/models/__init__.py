@@ -135,9 +135,9 @@ class DamageDetector:
         start_time = time.time()
         
         if self.model_type.lower() in ['yolo', 'yolov8', 'yolov8m', 'yolo11', 'yolo11m', 'rtdetr']:
-            detections, annotated = self._predict_yolo(img_array, conf, return_annotated)
+            detections, _ = self._predict_yolo(img_array, conf)
         else:
-            detections, annotated = self._predict_faster_rcnn(img_array, conf, return_annotated)
+            detections, _ = self._predict_faster_rcnn(img_array, conf)
         
         inference_time = (time.time() - start_time) * 1000
         
@@ -147,6 +147,12 @@ class DamageDetector:
             area_pct = (det.bbox.area / total_area) * 100
             det.area_percentage = round(area_pct, 2)
             det.severity = self._calculate_severity(area_pct)
+        
+        annotated = None
+        if return_annotated and len(detections) > 0:
+            annotated = self._annotate_image(
+                img_array.copy(), detections, inference_time
+            )
         
         return detections, annotated, inference_time
     
@@ -185,10 +191,9 @@ class DamageDetector:
         return img_array, original_size
     
     def _predict_yolo(
-        self, 
-        img_array: np.ndarray, 
+        self,
+        img_array: np.ndarray,
         conf: float,
-        return_annotated: bool
     ) -> Tuple[List[Detection], Optional[np.ndarray]]:
         """Run YOLO/RT-DETR inference."""
         results = self.model.predict(
@@ -220,18 +225,12 @@ class DamageDetector:
                 )
                 detections.append(detection)
         
-        annotated = None
-        if return_annotated and len(results) > 0:
-            annotated = results[0].plot()
-            annotated = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-        
-        return detections, annotated
+        return detections, None
     
     def _predict_faster_rcnn(
-        self, 
-        img_array: np.ndarray, 
+        self,
+        img_array: np.ndarray,
         conf: float,
-        return_annotated: bool
     ) -> Tuple[List[Detection], Optional[np.ndarray]]:
         """Run Faster R-CNN inference."""
         _ensure_imports()
@@ -269,14 +268,14 @@ class DamageDetector:
                     )
                     detections.append(detection)
         
-        # Annotate image
-        annotated = None
-        if return_annotated:
-            annotated = self._annotate_image(img_array.copy(), detections)
-        
-        return detections, annotated
+        return detections, None
     
-    def _annotate_image(self, image: np.ndarray, detections: List[Detection]) -> np.ndarray:
+    def _annotate_image(
+        self,
+        image: np.ndarray,
+        detections: List[Detection],
+        inference_time_ms: float,
+    ) -> np.ndarray:
         """Annotate image with detection boxes."""
         _ensure_imports()
         colors = {
@@ -299,8 +298,9 @@ class DamageDetector:
             # Draw box
             cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
             
-            # Draw label
-            label = f'{det.class_name}: {det.confidence:.2f}'
+            # Draw label (inference time for this run; confidence is in API JSON)
+            t = round(inference_time_ms)
+            label = f'{det.class_name} {t}ms'
             (label_w, label_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
             cv2.rectangle(image, (x1, y1 - label_h - 10), (x1 + label_w, y1), color, -1)
             cv2.putText(image, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)

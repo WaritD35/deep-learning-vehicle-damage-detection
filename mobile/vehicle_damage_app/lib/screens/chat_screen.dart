@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 
 class ChatMessage {
   final String text;
@@ -10,7 +11,7 @@ class ChatMessage {
 class ChatScreen extends StatefulWidget {
   final String assessmentId;
 
-  const ChatScreen({Key? key, required this.assessmentId}) : super(key: key);
+  const ChatScreen({super.key, required this.assessmentId});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -21,6 +22,12 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -65,102 +72,195 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const purple = Color(0xFF5061C8);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Damage Assistant'),
-        elevation: 1,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: Align(
-                    alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.75,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: msg.isUser ? Theme.of(context).colorScheme.primary : Colors.grey[200],
-                        borderRadius: BorderRadius.circular(16).copyWith(
-                          bottomRight: msg.isUser ? const Radius.circular(4) : null,
-                          bottomLeft: !msg.isUser ? const Radius.circular(4) : null,
-                        ),
-                      ),
-                      child: Text(
-                        msg.text,
-                        style: TextStyle(
-                          color: msg.isUser ? Colors.white : Colors.black87,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(),
-            ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: SafeArea(
+      backgroundColor: isDark ? const Color(0xFF0B1220) : AppTheme.backgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              height: 124,
+              color: purple,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                  const SizedBox(width: 4),
                   Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: InputDecoration(
-                        hintText: 'Type your message...',
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Text(
+                      'AI Chat',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700,
                       ),
-                      onSubmitted: (_) => _sendMessage(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send),
-                      color: Colors.white,
-                      onPressed: _isLoading ? null : _sendMessage,
-                    ),
+                  _HeaderIconAction(
+                    icon: Icons.support_agent_outlined,
+                    tooltip: 'Assistant',
+                    onTap: () {},
                   ),
+                  const SizedBox(width: 4),
                 ],
               ),
             ),
+            Expanded(
+              child: Transform.translate(
+                offset: const Offset(0, -22),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF131D33) : Colors.white,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
+                  ),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            final msg = _messages[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Align(
+                                alignment:
+                                    msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                                child: Container(
+                                  constraints: BoxConstraints(
+                                    maxWidth: MediaQuery.of(context).size.width * 0.75,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: msg.isUser
+                                        ? purple
+                                        : (isDark
+                                            ? Colors.white.withValues(alpha: 0.10)
+                                            : const Color(0xFFF4F3FB)),
+                                    borderRadius: BorderRadius.circular(18).copyWith(
+                                      bottomRight: msg.isUser ? const Radius.circular(4) : null,
+                                      bottomLeft: !msg.isUser ? const Radius.circular(4) : null,
+                                    ),
+                                    border: Border.all(
+                                      color: msg.isUser
+                                          ? purple
+                                          : (isDark ? Colors.white12 : Colors.grey.shade200),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    msg.text,
+                                    style: TextStyle(
+                                      color: msg.isUser
+                                          ? Colors.white
+                                          : (isDark ? Colors.white : Colors.black87),
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      if (_isLoading)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: CircularProgressIndicator(),
+                        ),
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4F3FB),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _controller,
+                                textCapitalization: TextCapitalization.sentences,
+                                decoration: InputDecoration(
+                                  hintText: 'Type your message...',
+                                  filled: true,
+                                  fillColor: isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.white,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                onSubmitted: (_) => _sendMessage(),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              decoration: const BoxDecoration(
+                                color: purple,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.send),
+                                color: Colors.white,
+                                onPressed: _isLoading ? null : _sendMessage,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderIconAction extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _HeaderIconAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
           ),
-        ],
+          child: Icon(icon, color: Colors.white, size: 22),
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/damage_models.dart';
+import '../theme/app_theme.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -88,9 +89,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0B1220) : AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Assessment History'),
+        title: const Text('Car Damage Analyzer'),
         actions: [
           if (_history.isNotEmpty)
             IconButton(
@@ -102,15 +106,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _history.isEmpty
-              ? _EmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadHistory,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _history.length,
-                    itemBuilder: (context, index) {
-                      final item = _history[index];
+          : RefreshIndicator(
+              onRefresh: _loadHistory,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : Colors.white,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                    ),
+                    child: Text(
+                      'Co-ders Intl',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  if (_history.isEmpty)
+                    _EmptyState()
+                  else
+                    ..._history.map((item) {
                       return _HistoryCard(
                         item: item,
                         onDelete: () => _deleteItem(item),
@@ -118,16 +135,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           showDialog(
                             context: context,
                             builder: (_) => AlertDialog(
-                              title: Text(
-                                item.damageCount > 0
-                                    ? '${item.damageCount} Damage${item.damageCount != 1 ? 's' : ''} Detected'
-                                    : 'No Damage Detected',
-                              ),
+              title: Text(item.title),
                               content: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Date: ${DateFormat('dd MMM yyyy – HH:mm').format(item.timestamp)}'),
+                  Text('Date: ${DateFormat('dd MMM yyyy – HH:mm').format(item.timestamp)}'),
+                  const SizedBox(height: 8),
+                  Text('Media: ${item.mediaType == AssessmentMediaType.video ? 'Video' : 'Image'}'),
                                   const SizedBox(height: 8),
                                   if (item.severity != null)
                                     Text('Severity: ${item.severity!.toUpperCase()}',
@@ -155,9 +170,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           );
                         },
                       );
-                    },
-                  ),
-                ),
+                    }),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -247,23 +263,24 @@ class _HistoryCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Thumbnail - web-safe: no File() usage
               Container(
-                width: 80,
-                height: 80,
+                width: 92,
+                height: 68,
                 decoration: BoxDecoration(
                   color: _severityColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _severityColor.withOpacity(0.22)),
                 ),
                 child: Icon(
-                  Icons.directions_car,
+                  item.mediaType == AssessmentMediaType.video
+                      ? Icons.videocam
+                      : Icons.directions_car,
                   color: _severityColor,
                   size: 36,
                 ),
               ),
               const SizedBox(width: 16),
               
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,10 +289,12 @@ class _HistoryCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            _formattedDate,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
+                            item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
                           ),
                         ),
                         Container(
@@ -296,6 +315,13 @@ class _HistoryCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
+                    Text(
+                      _formattedDate,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     Text(
                       '${item.damageCount} damage${item.damageCount != 1 ? 's' : ''} detected',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -337,61 +363,21 @@ class _HistoryCard extends StatelessWidget {
                 ),
               ),
               
-              // Delete button
-              IconButton(
-                icon: Icon(Icons.delete_outline, color: Colors.grey[400]),
-                onPressed: onDelete,
-                tooltip: 'Delete',
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.chevron_right_rounded),
+                  IconButton(
+                    icon: Icon(Icons.delete_outline, color: Colors.grey[400], size: 20),
+                    onPressed: onDelete,
+                    tooltip: 'Delete',
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
-  }
-}
-
-/// Model for assessment history items
-class AssessmentHistoryItem {
-  final String id;
-  final DateTime timestamp;
-  final String? thumbnailPath;
-  final int damageCount;
-  final List<String> damageTypes;
-  final double? totalCost;
-  final String? severity;
-
-  AssessmentHistoryItem({
-    required this.id,
-    required this.timestamp,
-    this.thumbnailPath,
-    required this.damageCount,
-    required this.damageTypes,
-    this.totalCost,
-    this.severity,
-  });
-
-  factory AssessmentHistoryItem.fromJson(Map<String, dynamic> json) {
-    return AssessmentHistoryItem(
-      id: json['id'] as String,
-      timestamp: DateTime.parse(json['timestamp'] as String),
-      thumbnailPath: json['thumbnail_path'] as String?,
-      damageCount: json['damage_count'] as int,
-      damageTypes: List<String>.from(json['damage_types'] as List),
-      totalCost: json['total_cost'] != null ? (json['total_cost'] as num).toDouble() : null,
-      severity: json['severity'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'timestamp': timestamp.toIso8601String(),
-      'thumbnail_path': thumbnailPath,
-      'damage_count': damageCount,
-      'damage_types': damageTypes,
-      'total_cost': totalCost,
-      'severity': severity,
-    };
   }
 }

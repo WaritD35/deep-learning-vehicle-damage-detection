@@ -24,12 +24,22 @@ class AssessmentState extends ChangeNotifier {
   // Image bytes (web-compatible)
   Uint8List? _imageBytes;
   Uint8List? get imageBytes => _imageBytes;
+  Uint8List? _videoBytes;
+  Uint8List? get videoBytes => _videoBytes;
   String? _imageName;
   String? get imageName => _imageName;
+  String? _videoName;
+  String? get videoName => _videoName;
+  AssessmentMediaType _mediaType = AssessmentMediaType.image;
+  AssessmentMediaType get mediaType => _mediaType;
+  String _assessmentTitle = 'Untitled';
+  String get assessmentTitle => _assessmentTitle;
   
   // Detection results
   DamageDetectionResponse? _detectionResult;
   DamageDetectionResponse? get detectionResult => _detectionResult;
+  VideoDetectionResponse? _videoResult;
+  VideoDetectionResponse? get videoResult => _videoResult;
   
   // Cost estimation
   CostEstimationResponse? _costEstimation;
@@ -50,9 +60,31 @@ class AssessmentState extends ChangeNotifier {
   /// Set the selected image bytes (web-compatible)
   void setImageBytes(Uint8List bytes, String name) {
     _imageBytes = bytes;
+    _videoBytes = null;
     _imageName = name;
+    _videoName = null;
+    _mediaType = AssessmentMediaType.image;
+    _assessmentTitle = 'Untitled';
     _status = AssessmentStatus.idle;
     _detectionResult = null;
+    _videoResult = null;
+    _costEstimation = null;
+    _report = null;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  /// Set the selected video bytes for the current app session only.
+  void setVideoBytes(Uint8List bytes, String name) {
+    _videoBytes = bytes;
+    _imageBytes = null;
+    _videoName = name;
+    _imageName = null;
+    _mediaType = AssessmentMediaType.video;
+    _assessmentTitle = 'Untitled';
+    _status = AssessmentStatus.idle;
+    _detectionResult = null;
+    _videoResult = null;
     _costEstimation = null;
     _report = null;
     _errorMessage = null;
@@ -62,8 +94,13 @@ class AssessmentState extends ChangeNotifier {
   /// Clear current image and results
   void clear() {
     _imageBytes = null;
+    _videoBytes = null;
     _imageName = null;
+    _videoName = null;
+    _mediaType = AssessmentMediaType.image;
+    _assessmentTitle = 'Untitled';
     _detectionResult = null;
+    _videoResult = null;
     _costEstimation = null;
     _report = null;
     _errorMessage = null;
@@ -89,6 +126,12 @@ class AssessmentState extends ChangeNotifier {
     _detectionResult = result;
     notifyListeners();
   }
+
+  /// Set video detection result
+  void setVideoResult(VideoDetectionResponse result) {
+    _videoResult = result;
+    notifyListeners();
+  }
   
   /// Set cost estimation
   void setCostEstimation(CostEstimationResponse cost) {
@@ -100,6 +143,12 @@ class AssessmentState extends ChangeNotifier {
   void setReport(ReportResponse report) {
     _report = report;
     _status = AssessmentStatus.complete;
+    notifyListeners();
+  }
+
+  void setAssessmentTitle(String title) {
+    final trimmed = title.trim();
+    _assessmentTitle = trimmed.isEmpty ? 'Untitled' : trimmed;
     notifyListeners();
   }
   
@@ -118,14 +167,16 @@ class AssessmentState extends ChangeNotifier {
       _status == AssessmentStatus.generatingReport;
   
   /// Check if we have results
-  bool get hasResults => _detectionResult != null;
+  bool get hasResults => _detectionResult != null || _videoResult != null;
   
   /// Check if we have detected damages
   bool get hasDamages => 
-      _detectionResult != null && _detectionResult!.numDetections > 0;
+      (_detectionResult != null && _detectionResult!.numDetections > 0) ||
+      (_videoResult != null && _videoResult!.uniqueDetections > 0);
   
   /// Get damage count
-  int get damageCount => _detectionResult?.numDetections ?? 0;
+  int get damageCount =>
+      _detectionResult?.numDetections ?? _videoResult?.uniqueDetections ?? 0;
   
   /// Get total estimated cost
   double? get totalCost => _costEstimation?.totalCost;
