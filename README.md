@@ -151,15 +151,17 @@ cd Intelligent-Vehicle-Damage-Assessment
 
 ### 2. Configure Environment
 
-Copy and edit the backend config:
+2.1 Copy and edit the backend config:
 ```bash
 cd backend
 ```
 
-Edit `.env` with your settings:
+2.2 Put your model (should be ended with .pt) in ./models directory
+
+2.3 Edit `.env` with your settings:
 ```env
 # Model
-MODEL_PATH=../models/yolo11m_best.pt
+MODEL_PATH=../models/<replace your model filename>.pt
 MODEL_TYPE=yolo11
 CONF_THRESHOLD=0.25
 IOU_THRESHOLD=0.45
@@ -226,10 +228,13 @@ cd build/web && python3 -m http.server 8080
 ```
 Open **http://localhost:8080**
 
-**iOS Simulator:**
+**iOS/Andriod Simulator:**
 ```bash
 cd mobile/vehicle_damage_app
-flutter run -d ios
+flutter create --platforms=ios,android .
+flutter pub get
+flutter devices
+flutter run -d # and select your devices
 ```
 
 **Physical iPhone (must be on same WiFi):**
