@@ -290,7 +290,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                             children: [
                             Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF4F3FB),
+                                color: AppTheme.cardSurface(context),
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: TextField(
@@ -393,10 +393,11 @@ class _PreviewCard extends StatelessWidget {
   void _openImageModal(BuildContext context) {
     final hasImage = annotatedImage != null || mediaBytes != null;
     if (!hasImage) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.22),
+      barrierColor: Colors.black.withValues(alpha: 0.55),
       builder: (_) => GestureDetector(
         onTap: () => Navigator.of(context).pop(),
         behavior: HitTestBehavior.opaque,
@@ -412,8 +413,11 @@ class _PreviewCard extends StatelessWidget {
               ),
               padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF131D33) : Colors.white,
                 borderRadius: BorderRadius.circular(18),
+                border: isDark
+                    ? Border.all(color: Colors.white.withValues(alpha: 0.10))
+                    : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -464,7 +468,7 @@ class _PreviewCard extends StatelessWidget {
     final hasImage = annotatedImage != null || mediaBytes != null;
 
     return Card(
-      color: const Color(0xFFF4F3FB),
+      color: AppTheme.cardSurface(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: GestureDetector(
@@ -638,7 +642,7 @@ class _NoDamageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFFF4F3FB),
+      color: AppTheme.cardSurface(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -679,7 +683,7 @@ class _DamagePartCard extends StatelessWidget {
     final area = detection.areaPercentage;
 
     return Card(
-      color: const Color(0xFFF4F3FB),
+      color: AppTheme.cardSurface(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -743,14 +747,13 @@ class _AnalysisOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final severity = report?.assessmentSummary.overallSeverity ??
         (detectionResult.numDetections == 0 ? 'none' : 'unknown');
-    final severityColor = AppTheme.getSeverityColor(severity);
     final detections = detectionResult.detections;
     final confidenceDisplay = detections.isEmpty
         ? '—'
         : '${(detections.map((d) => d.confidence).reduce(math.max) * 100).toStringAsFixed(0)}%';
 
     return Card(
-      color: const Color(0xFFF4F3FB),
+      color: AppTheme.cardSurface(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -799,10 +802,22 @@ class _AnalysisOverviewCard extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Chip(
-                avatar: Icon(Icons.shield_outlined, size: 16, color: severityColor),
-                label: Text('Severity: ${severity.toUpperCase()}'),
-                side: BorderSide(color: severityColor.withValues(alpha: 0.35)),
-                backgroundColor: severityColor.withValues(alpha: 0.10),
+                avatar: Icon(
+                  Icons.shield_outlined,
+                  size: 16,
+                  color: AppTheme.severityChipForeground(severity),
+                ),
+                label: Text(
+                  'Severity: ${severity.toUpperCase()}',
+                  style: TextStyle(
+                    color: AppTheme.severityChipForeground(severity),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                side: BorderSide(
+                  color: AppTheme.severityChipForeground(severity).withValues(alpha: 0.35),
+                ),
+                backgroundColor: AppTheme.getSeverityColor(severity).withValues(alpha: 0.16),
               ),
             ),
           ],
@@ -861,7 +876,7 @@ class _CostSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFFF4F3FB),
+      color: AppTheme.cardSurface(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -968,6 +983,8 @@ class _ReportSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: AppTheme.cardSurface(context),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

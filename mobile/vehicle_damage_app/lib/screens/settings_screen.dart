@@ -335,7 +335,7 @@ class _SoftBlock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF4F3FB),
+        color: isDark ? const Color(0xFF1E2A3D) : const Color(0xFFF4F3FB),
         borderRadius: BorderRadius.circular(16),
       ),
       child: child,
@@ -388,7 +388,7 @@ class _LineItem extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.grey[700],
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                       fontSize: 13,
                     ),
                   ),

@@ -96,10 +96,92 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadHistory();
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  bool _isVideoFilename(String filename, {String? mimeType}) {
+    final extension = filename.contains('.')
+        ? filename.split('.').last.toLowerCase()
+        : '';
+    if (extension.isNotEmpty) {
+      return {'mp4', 'mov', 'avi', 'mkv', 'webm'}.contains(extension);
+    }
+    return mimeType?.startsWith('video/') ?? false;
+  }
+
+  Future<void> _analyzeSelectedMedia(
+    Uint8List bytes,
+    String filename, {
+    String? mimeType,
+  }) async {
+    if (!mounted) return;
+
+    final state = context.read<AssessmentState>();
+    if (_isVideoFilename(filename, mimeType: mimeType)) {
+      state.setVideoBytes(bytes, filename);
+      await _analyzeVideo(bytes, filename);
+    } else {
+      state.setImageBytes(bytes, filename);
+      await _analyzeImageBytes(bytes, filename);
+    }
+  }
+
+  Future<void> _pickCameraMedia() async {
+    final captureVideo = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take photo'),
+              onTap: () => Navigator.pop(context, false),
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined),
+              title: const Text('Record video'),
+              onTap: () => Navigator.pop(context, true),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (captureVideo == null || !mounted) return;
+
     try {
-      final pickedFile = await _picker.pickImage(
-        source: source,
+      final pickedFile = captureVideo
+          ? await _picker.pickVideo(source: ImageSource.camera)
+          : await _picker.pickImage(
+              source: ImageSource.camera,
+              maxWidth: 1920,
+              maxHeight: 1920,
+              imageQuality: 90,
+            );
+
+      if (pickedFile == null) return;
+
+      final bytes = await pickedFile.readAsBytes();
+      final filename = pickedFile.name.isNotEmpty
+          ? pickedFile.name
+          : pickedFile.path.split('/').last;
+      if (mounted) {
+        await _analyzeSelectedMedia(
+          bytes,
+          filename,
+          mimeType: pickedFile.mimeType,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error capturing media: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickGalleryMedia() async {
+    try {
+      final pickedFile = await _picker.pickMedia(
         maxWidth: 1920,
         maxHeight: 1920,
         imageQuality: 90,
@@ -108,15 +190,20 @@ class _HomeScreenState extends State<HomeScreen> {
       if (pickedFile == null) return;
 
       final bytes = await pickedFile.readAsBytes();
-      final filename = pickedFile.name;
+      final filename = pickedFile.name.isNotEmpty
+          ? pickedFile.name
+          : pickedFile.path.split('/').last;
       if (mounted) {
-        context.read<AssessmentState>().setImageBytes(bytes, filename);
-        _analyzeImageBytes(bytes, filename);
+        await _analyzeSelectedMedia(
+          bytes,
+          filename,
+          mimeType: pickedFile.mimeType,
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking image: $e')),
+          SnackBar(content: Text('Error choosing from gallery: $e')),
         );
       }
     }
@@ -156,17 +243,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final extension = file.extension?.toLowerCase() ??
           file.name.split('.').last.toLowerCase();
-      final isVideo = {'mp4', 'mov', 'avi', 'mkv', 'webm'}.contains(extension);
+      final filename = file.name.isNotEmpty ? file.name : 'upload.$extension';
 
       if (mounted) {
-        final state = context.read<AssessmentState>();
-        if (isVideo) {
-          state.setVideoBytes(bytes, file.name);
-          _analyzeVideo(bytes, file.name);
-        } else {
-          state.setImageBytes(bytes, file.name);
-          _analyzeImageBytes(bytes, file.name);
-        }
+        await _analyzeSelectedMedia(bytes, filename);
       }
     } catch (e) {
       if (mounted) {
@@ -408,10 +488,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 option(
                   icon: Icons.camera_alt_outlined,
                   title: 'Take Photo',
-                  subtitle: 'Open camera for damage analysis',
+                  subtitle: 'Capture a photo or record a video',
                   onTap: () {
                     Navigator.pop(context);
-                    _pickImage(ImageSource.camera);
+                    _pickCameraMedia();
+                  },
+                ),
+                const SizedBox(height: 10),
+                option(
+                  icon: Icons.photo_library_outlined,
+                  title: 'Choose from Gallery',
+                  subtitle: 'Pick a photo or video from your gallery',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickGalleryMedia();
                   },
                 ),
                 const SizedBox(height: 10),
@@ -481,25 +571,6 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('Date: ${DateFormat('dd MMM yyyy - HH:mm').format(item.timestamp)}'),
             const SizedBox(height: 8),
             Text('Media: ${item.mediaType == AssessmentMediaType.video ? 'Video' : 'Image'}'),
-            const SizedBox(height: 8),
-            if (item.severity != null)
-              Text(
-                'Severity: ${item.severity!.toUpperCase()}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            if (item.damageTypes.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              const Text('Damage types:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              ...item.damageTypes.map((t) => Text('  - ${t.replaceAll("_", " ")}')),
-            ],
-            if (item.totalCost != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Est. Cost: \$${item.totalCost!.toStringAsFixed(2)} AUD',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
           ],
         ),
         actions: [
@@ -517,16 +588,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final state = context.watch<AssessmentState>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const purple = Color(0xFF5061C8);
-
-    final totalCost = _history.fold<double>(
-      0,
-      (sum, item) => sum + (item.totalCost ?? 0),
-    );
-    final totalDamages = _history.fold<int>(
-      0,
-      (sum, item) => sum + item.damageCount,
-    );
-    final severeCount = _history.where((i) => (i.severity ?? '').toLowerCase() == 'severe').length;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0B1220) : const Color(0xFFEAF3FA),
@@ -589,16 +650,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           child: Column(
                             children: [
-                              if (_history.isNotEmpty) ...[
-                                _SketchSummaryStrip(
-                                  isDark: isDark,
-                                  totalAssessments: _history.length,
-                                  totalDamages: totalDamages,
-                                  severeCount: severeCount,
-                                  totalCost: totalCost,
-                                ),
-                              ],
-                              const SizedBox(height: 18),
                               if (_history.isEmpty)
                                 const _EmptyHistoryState()
                               else
@@ -701,24 +752,9 @@ class _HistoryCard extends StatelessWidget {
     return DateFormat.yMMMd().format(item.timestamp);
   }
 
-  Color _severityColor(BuildContext context) {
-    switch (item.severity?.toLowerCase()) {
-      case 'severe':
-        return Colors.red;
-      case 'moderate':
-        return Colors.orange;
-      case 'minor':
-        return Colors.amber;
-      case 'none':
-        return Colors.green;
-      default:
-        return Theme.of(context).colorScheme.primary;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final severityColor = _severityColor(context);
+    final accentColor = Theme.of(context).colorScheme.primary;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -734,8 +770,8 @@ class _HistoryCard extends StatelessWidget {
                   width: 78,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: severityColor.withOpacity(0.12),
-                    border: Border.all(color: severityColor.withOpacity(0.25)),
+                    color: accentColor.withOpacity(0.12),
+                    border: Border.all(color: accentColor.withOpacity(0.25)),
                   ),
                   child: thumbnailBytes != null
                       ? Image.memory(
@@ -746,7 +782,7 @@ class _HistoryCard extends StatelessWidget {
                           item.mediaType == AssessmentMediaType.video
                               ? Icons.videocam_outlined
                               : Icons.directions_car_outlined,
-                          color: severityColor,
+                          color: accentColor,
                           size: 28,
                         ),
                 ),
@@ -773,49 +809,6 @@ class _HistoryCard extends StatelessWidget {
                       _formattedDate,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.shield_outlined,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '${item.damageCount} damage${item.damageCount == 1 ? '' : 's'} detected',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (item.damageTypes.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: item.damageTypes.take(3).map((t) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.18),
-                              ),
-                            ),
-                            child: Text(
-                              t.replaceAll('_', ' '),
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontSize: 12,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -947,88 +940,6 @@ class _SketchHeader extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SketchSummaryStrip extends StatelessWidget {
-  final bool isDark;
-  final int totalAssessments;
-  final int totalDamages;
-  final int severeCount;
-  final double totalCost;
-
-  const _SketchSummaryStrip({
-    required this.isDark,
-    required this.totalAssessments,
-    required this.totalDamages,
-    required this.severeCount,
-    required this.totalCost,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Widget item(String label, String value) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white10 : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      );
-    }
-
-    final tiles = [
-      item('Reports', '$totalAssessments'),
-      item('Damage', '$totalDamages'),
-      item('Severe', '$severeCount'),
-      item('Cost', totalCost > 0 ? '\$${totalCost.toStringAsFixed(0)}' : '-'),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const gap = 8.0;
-        if (constraints.maxWidth < 500) {
-          final tileWidth = (constraints.maxWidth - gap) / 2;
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: tiles
-                .map((w) => SizedBox(width: tileWidth, child: w))
-                .toList(growable: false),
-          );
-        }
-
-        return Row(
-          children: [
-            Expanded(child: tiles[0]),
-            const SizedBox(width: gap),
-            Expanded(child: tiles[1]),
-            const SizedBox(width: gap),
-            Expanded(child: tiles[2]),
-            const SizedBox(width: gap),
-            Expanded(child: tiles[3]),
-          ],
-        );
-      },
     );
   }
 }

@@ -179,8 +179,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF4F3FB),
+                          color: isDark ? const Color(0xFF1E2A3D) : const Color(0xFFF4F3FB),
                           borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.transparent,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -192,7 +197,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   hintText: 'Type your message...',
                                   filled: true,
                                   fillColor: isDark
-                                      ? Colors.white.withValues(alpha: 0.08)
+                                      ? const Color(0xFF131D33)
                                       : Colors.white,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(24),
