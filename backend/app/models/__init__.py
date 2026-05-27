@@ -130,6 +130,7 @@ class DamageDetector:
         
         # Load and preprocess image
         img_array, original_size = self._preprocess_image(image)
+        original_rgb = img_array.copy()
         
         # Run inference
         start_time = time.time()
@@ -150,8 +151,9 @@ class DamageDetector:
         
         annotated = None
         if return_annotated and len(detections) > 0:
+            # Keep a pristine RGB copy for annotation (inference may touch img_array).
             annotated = self._annotate_image(
-                img_array.copy(), detections, inference_time
+                original_rgb, detections, inference_time
             )
         
         return detections, annotated, inference_time
@@ -276,15 +278,17 @@ class DamageDetector:
         detections: List[Detection],
         inference_time_ms: float,
     ) -> np.ndarray:
-        """Annotate image with detection boxes."""
+        """Annotate an RGB image with detection boxes; returns RGB."""
         _ensure_imports()
+        # OpenCV drawing uses BGR; the rest of the pipeline uses RGB.
+        bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         colors = {
-            'dent': (255, 0, 0),          # Red
-            'scratch': (0, 255, 0),        # Green
-            'crack': (0, 0, 255),          # Blue
-            'glass_shatter': (255, 255, 0), # Yellow
+            'dent': (0, 0, 255),            # Red (BGR)
+            'scratch': (0, 255, 0),         # Green
+            'crack': (255, 0, 0),           # Blue
+            'glass_shatter': (0, 255, 255), # Yellow
             'lamp_broken': (255, 0, 255),   # Magenta
-            'tire_flat': (0, 255, 255),     # Cyan
+            'tire_flat': (255, 255, 0),     # Cyan
         }
         
         for det in detections:
@@ -295,17 +299,15 @@ class DamageDetector:
             
             color = colors.get(det.class_name, (0, 255, 0))
             
-            # Draw box
-            cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
+            cv2.rectangle(bgr, (x1, y1), (x2, y2), color, 2)
             
-            # Draw label (inference time for this run; confidence is in API JSON)
             t = round(inference_time_ms)
             label = f'{det.class_name} {t}ms'
             (label_w, label_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-            cv2.rectangle(image, (x1, y1 - label_h - 10), (x1 + label_w, y1), color, -1)
-            cv2.putText(image, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            cv2.rectangle(bgr, (x1, y1 - label_h - 10), (x1 + label_w, y1), color, -1)
+            cv2.putText(bgr, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         
-        return image
+        return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
     
     def _calculate_severity(self, area_percentage: float) -> str:
         """Calculate damage severity based on area percentage."""

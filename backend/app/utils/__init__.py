@@ -150,16 +150,16 @@ def draw_detections(
     """
     if colors is None:
         colors = {
-            'dent': (255, 0, 0),
+            'dent': (0, 0, 255),
             'scratch': (0, 255, 0),
-            'crack': (0, 0, 255),
-            'glass_shatter': (255, 255, 0),
+            'crack': (255, 0, 0),
+            'glass_shatter': (0, 255, 255),
             'lamp_broken': (255, 0, 255),
-            'tire_flat': (0, 255, 255),
+            'tire_flat': (255, 255, 0),
         }
     
-    annotated = image.copy()
     cv2 = _get_cv2()
+    annotated = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     
     for det in detections:
         x1 = int(det.bbox.x_min)
@@ -197,7 +197,7 @@ def draw_detections(
             1
         )
     
-    return annotated
+    return cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
 
 
 def create_damage_heatmap(
